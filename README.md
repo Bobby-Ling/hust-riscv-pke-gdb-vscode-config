@@ -146,7 +146,7 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
 <img src="Assets/PKE_OS_LAB_GDB调试/image-3.png" alt="VSCode配置" style="zoom: 67%;" />
 
 - **.vscode/launch.json**:
-    ```json
+    ```json5
     {
         "version": "0.2.0",
         "configurations": [
@@ -213,7 +213,7 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
     }
     ```
 - **.vscode/tasks.json**:
-    ```json
+    ```json5
     {
       "version": "2.0.0",
       "options": {
