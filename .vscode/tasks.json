@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "start_kernel.sh",
+      "command": "cd ${workspaceFolder} && ./start_kernel.sh",
+      "isBackground": true,
+      "args": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        {
+          "pattern": {
+            "regexp": "^(START_KERNEL)", //问题模式或者所提供或预定义问题模式的名称。如果已指定基准，则可以省略。
+            "line": 1
+            // "file": 1,
+            // "location": 2,
+            // "message": 3
+          },
+          "background": { //用于跟踪在后台任务上激活的匹配程序的开始和结束的模式。
+            "activeOnStart": true, //如KERNEL_STARTED果设置为 true，则任务启动时后台监视器处于活动模式。这相当于发出与 beginsPattern 匹配的行
+            "beginsPattern": "^(START_KERNEL)", //如果在输出内匹配，则会发出后台任务开始的信号
+            "endsPattern": "^(START_KERNEL)" //如果在输出内匹配，则会发出后台任务结束的信号
+          }
+        }
+      ],
+      "detail": "start_kernel.sh"
+    },
+    {
+      "type": "shell",
+      "label": "clean_debug.sh",
+      "command": "cd ${workspaceFolder} && ./clean_debug.sh",
+      "args": [],
+      "detail": "clean_debug.sh"
+    }
+  ]
+}

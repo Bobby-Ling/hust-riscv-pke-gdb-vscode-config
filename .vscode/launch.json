@@ -1,0 +1,65 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) 调试pke",
+            "type": "cppdbg",
+            "request": "launch",
+            "args": [],
+            "stopAtEntry": true,
+            // "stopAtConnect": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "program": "${workspaceFolder}/obj/riscv-pke",
+            "miDebuggerPath": "riscv64-unknown-elf-gdb",
+            // "miDebuggerServerAddress": "localhost:3333",
+            // "miDebuggerArgs": "obj/riscv-pke",
+            // "useExtendedRemote": true,
+
+            // riscv64-unknown-elf-gdb --interpreter=mi obj/riscv-pke
+            // target extended-remote localhost:3333
+            //
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "防止pwd错误, 找不到文件",
+                    "text": "cd ${workspaceFolder}",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "target ext :3333, 连接至openocd",
+                    "text": "target extended-remote localhost:3333",
+                    "ignoreFailures": false
+                },
+                // {
+                //     "description": "发送`reset halt`命令至openocd复位, 并无必要",
+                //     "text": "monitor reset halt",
+                //     "ignoreFailures": false
+                // },
+                {
+                    "text": "symbol-file obj/riscv-pke",
+                    "ignoreFailures": false
+                },
+                // {
+                //     "text": "source ./.gdbinit",
+                //     "ignoreFailures": false
+                // },
+            ],
+            "preLaunchTask": "start_kernel.sh",
+            "postDebugTask": "clean_debug.sh",
+
+            // 在调试控制台中显示详细log
+            // "logging": {
+                // "trace": true,
+                // "traceResponse": true,
+                // "engineLogging": true
+            // }
+        }
+    ]
+}

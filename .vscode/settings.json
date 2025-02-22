@@ -1,0 +1,5 @@
+{
+    "C_Cpp.codeAnalysis.clangTidy.args": [
+        "-target riscv64 -march=rv64imafdc -mcmodel=medany"
+    ]
+}
