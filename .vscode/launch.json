@@ -37,19 +37,10 @@
                     "text": "target extended-remote localhost:3333",
                     "ignoreFailures": false
                 },
-                // {
-                //     "description": "发送`reset halt`命令至openocd复位, 并无必要",
-                //     "text": "monitor reset halt",
-                //     "ignoreFailures": false
-                // },
                 {
-                    "text": "symbol-file obj/riscv-pke",
-                    "ignoreFailures": false
+                    "text": "source common.gdbinit",
+                    "ignoreFailures": true
                 },
-                // {
-                //     "text": "source ./.gdbinit",
-                //     "ignoreFailures": false
-                // },
             ],
             "preLaunchTask": "start_kernel.sh",
             "postDebugTask": "clean_debug.sh",

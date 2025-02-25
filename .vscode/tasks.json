@@ -37,7 +37,25 @@
       "label": "clean_debug.sh",
       "command": "cd ${workspaceFolder} && ./clean_debug.sh",
       "args": [],
-      "detail": "clean_debug.sh"
+      "detail": "clean_debug.sh",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "type": "shell",
+      "label": "make",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "command": "cd ${workspaceFolder} && make -j",
+      "detail": "make"
     }
   ]
 }
