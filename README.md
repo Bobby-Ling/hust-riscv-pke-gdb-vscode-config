@@ -37,56 +37,57 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
 ## 坑点
 
 1. spike会先从`0x1000`开始执行几条代码(并非elf入口点), 用来提供dtb相关信息, 这几条指令并不在elf文件中, GDB也无法感知, 因此gdb`load`命令会从`_mentry`开始执行, 此时`a0 a1`未初始化, 调试到init_dtb()就会炸;
-2. 工具链最好不要用发行版的, 虽然写了有riscv支持, 但是有点容易出兼容性问题, 最好去riscv官方仓库那里;
-3. [pke-doc那个镜像](docker.io/tjr9098/amd64_pke_mirrors:1.0)的gdb工具链有点小小兼容性问题, 有些调试信息识别不了;
+2. 在启用timer后每次gdb step都会先进入中断处理, 可通过set $mie = $mie & ~0x80关闭MIE_MTIE
+3. 工具链最好不要用发行版的, 虽然写了有riscv支持, 但是有点容易出兼容性问题, 最好去riscv官方仓库那里;
+4. [pke-doc那个镜像](docker.io/tjr9098/amd64_pke_mirrors:1.0)的gdb工具链有点小小兼容性问题, 有些调试信息识别不了;
 
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-2.png" alt="gdb版本有点老" style="zoom: 50%;" />
+    <img src="Assets/README/image-2.png" alt="gdb版本有点老" style="zoom: 50%;" />
     
-4. 从21年到现在spike的命令行参数(`-H` -> `--halted`)和openocd的配置文件格式有些小改, 需要稍微注意.
+5. 从21年到现在spike的命令行参数(`-H` -> `--halted`)和openocd的配置文件格式有些小改, 需要稍微注意.
 
 ## 踩坑过程
 
 1. 起初按照[GDB-and-OpenOCD](https://openocd.org/doc/html/GDB-and-OpenOCD.html)文档的20.2节进行调试:
 
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-4.png" alt="GDB-and-OpenOCD 20.2" style="zoom: 50%;" />
+    <img src="Assets/README/image-4.png" alt="GDB-and-OpenOCD 20.2" style="zoom: 50%;" />
 
     `riscv64-unknown-elf-gdb`连接上openocd后:
 
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-5.png" alt="连接上openocd后" style="zoom: 67%;" />
+    <img src="Assets/README/image-5.png" alt="连接上openocd后" style="zoom: 67%;" />
 
     并未察觉到0x1000地址的含义, 以为只是由于gdb"尚未感知"`obj/riscv-pke`导致的问题, 因此参考文档执行`load obj/riscv-pke`, 随后`$pc`变成了elf入口点(_mentry), 似乎一切正常.
 
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-6.png" alt="load obj/riscv-pke" style="zoom: 67%;" />
+    <img src="Assets/README/image-6.png" alt="load obj/riscv-pke" style="zoom: 67%;" />
 
     然后发现执行到`init_dtb()`内的`fdt_scan()`时`$pc`突然变成0x0:
 
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-7.png" alt="发现执行到`init_dtb()`内的`fdt_scan()`" style="zoom:50%;" />
+    <img src="Assets/README/image-7.png" alt="发现执行到`init_dtb()`内的`fdt_scan()`" style="zoom:50%;" />
 
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-8.png" alt="`$pc`即将变成0x0" style="zoom:50%;" />
+    <img src="Assets/README/image-8.png" alt="`$pc`即将变成0x0" style="zoom:50%;" />
     
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-9.png" alt="`$pc`突然变成0x0" style="zoom:50%;" />
+    <img src="Assets/README/image-9.png" alt="`$pc`突然变成0x0" style="zoom:50%;" />
     
 2. 想不明白, 开始排查:
 
     先把GDB去了, 用openocd调试看看, `$pc`依然是0x1000:
     
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-10.png" alt="$pc依然是0x1000" style="zoom:50%;" />
+    <img src="Assets/README/image-10.png" alt="$pc依然是0x1000" style="zoom:50%;" />
     
     打完断点, 单步之后依然复现:
     
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-11.png" alt="单步之后依然复现" style="zoom: 67%;" />
+    <img src="Assets/README/image-11.png" alt="单步之后依然复现" style="zoom: 67%;" />
 
 3. 终于注意到了0x1000, 查看spike的指令log:
 
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-12.png" alt="spike的指令log" style="zoom: 67%;" />
+    <img src="Assets/README/image-12.png" alt="spike的指令log" style="zoom: 67%;" />
     
     查看spike源代码发现其加电后会在0x1000进行一些dtb之类的初始化, 然后跳转至入口点_mentry:
     
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-13.png" alt="spike源代码" style="zoom:50%;" />
+    <img src="Assets/README/image-13.png" alt="spike源代码" style="zoom:50%;" />
     
     即`void m_start(uintptr_t hartid, uintptr_t dtb)`的两个参数`a0 a1`
     
-    <img src="Assets/PKE_OS_LAB_GDB调试/image-14.png" alt="alt text" style="zoom:50%;" />
+    <img src="Assets/README/image-14.png" alt="alt text" style="zoom:50%;" />
 
 4. 原因分析:  
 
@@ -108,6 +109,14 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
     c
     ```
 
+6. 开启timer后时钟中断影响调试:
+    
+    开启时钟中断前next能够正常执行, 开启后会进入中断处理, 且无法继续:
+    
+    <img src="Assets/README/image-15.png" alt="开启timer后时钟中断影响调试" style="zoom:50%;" />
+    
+    `set $mie = $mie & ~0x80`关闭MIE_MTIE中断使能.
+    
 
 ## 相关资源
 
@@ -143,7 +152,7 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
 
 效果:
 
-<img src="Assets/PKE_OS_LAB_GDB调试/image-3.png" alt="VSCode配置" style="zoom: 67%;" />
+<img src="Assets/README/image-3.png" alt="VSCode配置" style="zoom: 67%;" />
 
 - **.vscode/launch.json**:
     ```json5

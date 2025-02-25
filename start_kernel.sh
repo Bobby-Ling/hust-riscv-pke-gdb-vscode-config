@@ -7,9 +7,9 @@ echo "start at $(pwd)"
 kill -9 $(lsof -i:9824 -t)
 kill -9 $(lsof -i:3333 -t)
 
-# spike -l --log=spike.log obj/riscv-pke obj/app_errorline
+# spike -l --log=spike.log obj/riscv-pke obj/app_*
 # 效果是spike先后台运行, 但是依然显示spike的输出
-spike --rbb-port=9824 --halted obj/riscv-pke obj/app_errorline 2>&1 | tee spike.log &
+spike --rbb-port=9824 --halted obj/riscv-pke obj/app_* 2>&1 | tee spike.log &
 
 sleep 0.1s
 
