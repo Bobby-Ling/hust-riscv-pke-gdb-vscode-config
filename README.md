@@ -7,8 +7,10 @@
 ```gdb
 target extended-remote localhost:3333
 symbol-file obj/riscv-pke
-b m_start
-c
+# m_start中会timerinit()
+break s_start
+continue
+set $mie = $mie & ~0x80
 ```
 
 官方docker镜像`apt update && apt install lsof libncurses5 libjim-dev libjim0.79 libpython2.7`装完依赖后就可以使用这几个命令连接至openocd调试. 但是给的gdb版本有点老, 建议更新一下
@@ -18,7 +20,7 @@ c
 gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体流程是这样的:
 
 1. 安装工具链:  
-    `spike`, `openocd`用[pke-doc](https://gitee.com/hustos/pke-doc/blob/master/chapter2_installation.md)那个就行, `riscv64-unknown-elf-gdb`建议从riscv官方仓库release下载
+    `spike`, `openocd`用[pke-doc](https://gitee.com/hustos/pke-doc/blob/master/chapter2_installation.md)那个就行, `riscv64-unknown-elf-gdb`建议用官方docker镜像的那个, 不然有些实验可能有些小问题(未解决).
 2. 启动spike:  
     `spike --rbb-port=9824 --halted obj/riscv-pke obj/app_errorline`
     (旧版本`--halted`是`-H`)
@@ -127,32 +129,37 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
 
 ## 附: 环境信息
 
-- **系统**: Ubuntu 22.04.1 LTS
-- **GDB**: riscv64-unknown-elf-gdb ([官方release](https://github.com/riscv-collab/riscv-gnu-toolchain/releases/tag/2025.01.20))
-- **Spike**: [commit 206268c](https://github.com/riscv-software-src/riscv-isa-sim)
-- **OpenOCD**: [commit fac1412](https://github.com/riscv-collab/riscv-openocd)
-    ```
-    adapter driver remote_bitbang
-    remote_bitbang host localhost
-    remote_bitbang port 9824
-    
-    set _CHIPNAME riscv
-    jtag newtap $_CHIPNAME cpu -irlen 5 -expected-id 0x10e31913
-    
-    set _TARGETNAME $_CHIPNAME.cpu
-    target create $_TARGETNAME riscv -chain-position $_TARGETNAME
-    
-    gdb report_data_abort enable
-    
-    init
-    halt
-    ```
-    
+- ~~**系统**: Ubuntu 22.04.1 LTS~~
+
+- ~~**GDB**: riscv64-unknown-elf-gdb ([官方release](https://github.com/riscv-collab/riscv-gnu-toolchain/releases/tag/2025.01.20))~~
+
+- ~~**Spike**: [commit 206268c](https://github.com/riscv-software-src/riscv-isa-sim)~~  
+
+- ~~**OpenOCD**: [commit fac1412](https://github.com/riscv-collab/riscv-openocd)~~
+
+- 比较新的GCC(2025年)编译发现有些实验会遇到`Misaligned Load!`, 2021年的可以正常通过, 未仔细分析.
+
+- Spike和OpenOCD镜像中的2021版本和最新的版本都可以, 只是要小改一下参数格式.
+
+
 ## 附: VSCode配置
+
+配置文件: [详细配置文件](https://github.com/Bobby-Ling/hust-riscv-pke-gdb-vscode-config/archive/refs/heads/main.zip)
 
 效果:
 
 <img src="Assets/README/image-3.png" alt="VSCode配置" style="zoom: 67%;" />
+
+- **.gdbinit**:
+    ```gdb
+    # riscv64-unknown-elf-gdb -ex "target ext :3333"
+    monitor reset halt
+    symbol-file obj/riscv-pke
+    # m_start中会timerinit()
+    b s_start
+    c
+    set $mie = $mie & ~0x80
+    ```
 
 - **.vscode/launch.json**:
     ```json5
@@ -175,10 +182,6 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
                 // "miDebuggerServerAddress": "localhost:3333",
                 // "miDebuggerArgs": "obj/riscv-pke",
                 // "useExtendedRemote": true,
-    
-                // riscv64-unknown-elf-gdb --interpreter=mi obj/riscv-pke
-                // target extended-remote localhost:3333
-                //
                 "setupCommands": [
                     {
                         "description": "为 gdb 启用整齐打印",
@@ -194,33 +197,17 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
                         "text": "target extended-remote localhost:3333",
                         "ignoreFailures": false
                     },
-                    // {
-                    //     "description": "发送`reset halt`命令至openocd复位, 并无必要",
-                    //     "text": "monitor reset halt",
-                    //     "ignoreFailures": false
-                    // },
                     {
-                        "text": "symbol-file obj/riscv-pke",
-                        "ignoreFailures": false
+                        "text": "source .gdbinit",
+                        "ignoreFailures": true
                     },
-                    // {
-                    //     "text": "source ./.gdbinit",
-                    //     "ignoreFailures": false
-                    // },
                 ],
-                "preLaunchTask": "start_kernel.sh",
-                // "postDebugTask": "clean_debug.sh",
-    
-                // 在调试控制台中显示详细log
-                // "logging": {
-                    // "trace": true,
-                    // "traceResponse": true,
-                    // "engineLogging": true
-                // }
+                "preLaunchTask": "start_kernel.sh"
             }
         ]
     }
     ```
+
 - **.vscode/tasks.json**:
     ```json5
     {
@@ -260,8 +247,8 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
       ]
     }
     ```
-- **start_kernel.sh**
 
+- **start_kernel.sh**
     ```bash
     #!/bin/bash
     
@@ -272,9 +259,9 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
     kill -9 $(lsof -i:9824 -t)
     kill -9 $(lsof -i:3333 -t)
     
-    # spike -l --log=spike.log obj/riscv-pke obj/app_errorline
+    # spike -l --log=spike.log obj/riscv-pke obj/app_*
     # 效果是spike先后台运行, 但是依然显示spike的输出
-    spike --rbb-port=9824 --halted obj/riscv-pke obj/app_errorline 2>&1 | tee spike.log &
+    spike --rbb-port=9824 --halted obj/riscv-pke obj/app_* 2>&1 | tee spike.log &
     
     sleep 0.1s
     
@@ -293,5 +280,4 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
     
     echo STARTED
     ```
-    
     
