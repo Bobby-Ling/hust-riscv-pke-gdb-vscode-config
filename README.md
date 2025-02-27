@@ -2,6 +2,8 @@
 
 ## 省流
 
+包含: .gdbinit文件、vscode调试配置、openocd多核调试配置等 
+
 [仓库](https://gitee.com/hustos/riscv-pke)里缺失的.gdbinit文件内容是:
 
 ```gdb
@@ -43,7 +45,7 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
 3. 工具链最好不要用发行版的, 虽然写了有riscv支持, 但是有点容易出兼容性问题, 最好去riscv官方仓库那里;
 4. [pke-doc那个镜像](docker.io/tjr9098/amd64_pke_mirrors:1.0)的gdb工具链有点小小兼容性问题, 有些调试信息识别不了;
 
-    <img src="Assets/README/image-2.png" alt="gdb版本有点老" style="zoom: 50%;" />
+    <img src="Assets/README/image-2.png" alt="gdb版本有点老" style="zoom: 40%;" />
     
 5. 从21年到现在spike的命令行参数(`-H` -> `--halted`)和openocd的配置文件格式有些小改, 需要稍微注意.
 
@@ -59,7 +61,7 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
 
     并未察觉到0x1000地址的含义, 以为只是由于gdb"尚未感知"`obj/riscv-pke`导致的问题, 因此参考文档执行`load obj/riscv-pke`, 随后`$pc`变成了elf入口点(_mentry), 似乎一切正常.
 
-    <img src="Assets/README/image-6.png" alt="load obj/riscv-pke" style="zoom: 67%;" />
+    <img src="Assets/README/image-6.png" alt="load obj/riscv-pke" style="zoom: 56%;" />
 
     然后发现执行到`init_dtb()`内的`fdt_scan()`时`$pc`突然变成0x0:
 
@@ -81,7 +83,7 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
 
 3. 终于注意到了0x1000, 查看spike的指令log:
 
-    <img src="Assets/README/image-12.png" alt="spike的指令log" style="zoom: 67%;" />
+    <img src="Assets/README/image-12.png" alt="spike的指令log" style="zoom: 56%;" />
     
     查看spike源代码发现其加电后会在0x1000进行一些dtb之类的初始化, 然后跳转至入口点_mentry:
     
@@ -89,7 +91,7 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
     
     即`void m_start(uintptr_t hartid, uintptr_t dtb)`的两个参数`a0 a1`
     
-    <img src="Assets/README/image-14.png" alt="alt text" style="zoom:50%;" />
+    <img src="Assets/README/image-14.png" alt="alt text" style="zoom:40%;" />
 
 4. 原因分析:  
 
@@ -112,13 +114,44 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
     ```
 
 6. 开启timer后时钟中断影响调试:
-    
+   
     开启时钟中断前next能够正常执行, 开启后会进入中断处理, 且无法继续:
     
     <img src="Assets/README/image-15.png" alt="开启timer后时钟中断影响调试" style="zoom:50%;" />
     
     `set $mie = $mie & ~0x80`关闭MIE_MTIE中断使能.
+
+7. 多核调试:
+   
+    开启多核后GDB和OpenOCD识别不到两个hart, 因为只创建了riscv.cpu:
     
+    <img src="Assets/README/image-16.png" alt="GDB识别不到两个hart" style="zoom:50%;" />
+    
+    <img src="Assets/README/image-18.png" alt="OpenOCD识别不到两个hart" style="zoom:50%;" />
+    
+    参考[smp-threads-not-showing-in-gdb](https://stackoverflow.com/questions/71964460/smp-threads-not-showing-in-gdb)添加调试target后:
+
+    ```tcl
+    set _TARGETNAME $_CHIPNAME.cpu
+    target create $_TARGETNAME.0 riscv -chain-position $_TARGETNAME -coreid 0 -rtos hwthread
+    target create $_TARGETNAME.1 riscv -chain-position $_TARGETNAME -coreid 1 -rtos hwthread
+    ```
+    
+    OpenOCD针对每个hwthread开了一个GDB端口(因为hwthread不一定是对称的).
+    
+    <img src="Assets/README/image-17.png" alt="alt text" style="zoom:40%;" />
+    
+    参考文档[Define CPU targets working in SMP](https://openocd.org/doc/html/Config-File-Guidelines.html), 应该手动开启SMP:
+    
+    ```tcl
+    target create $_TARGETNAME.0 riscv -chain-position $_TARGETNAME -coreid 0 -rtos hwthread
+    target create $_TARGETNAME.1 riscv -chain-position $_TARGETNAME -coreid 1 -rtos hwthread
+    target smp riscv.cpu.0 riscv.cpu.1
+    ```
+    
+    可以在GDB中进行多线程调试:
+    
+    <img src="Assets/README/image-19.png" alt="GDB中进行多线程调试" style="zoom: 40%;" />
 
 ## 相关资源
 
@@ -126,6 +159,8 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
 2. [gdb target和load](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Target-Commands.html)
 3. [GDB-and-OpenOCD](https://openocd.org/doc/html/GDB-and-OpenOCD.html)
 4. [VSCode调试时preLaunchTask为持续后台任务](https://github.com/microsoft/vscode/issues/90288)
+5. [smp-threads-not-showing-in-gdb](https://stackoverflow.com/questions/71964460/smp-threads-not-showing-in-gdb)
+6. [Config-File-Guidelines # 6.3.4 Define CPU targets working in SMP](https://openocd.org/doc/html/Config-File-Guidelines.html)
 
 ## 附: 环境信息
 
@@ -137,7 +172,7 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
 
 - ~~**OpenOCD**: [commit fac1412](https://github.com/riscv-collab/riscv-openocd)~~
 
-- 比较新的GCC(2025年)编译发现有些实验会遇到`Misaligned Load!`, 2021年的可以正常通过, 未仔细分析.
+- ~~比较新的GCC(2025年)编译发现有些实验会遇到`Misaligned Load!`, 2021年的可以正常通过, 未仔细分析~~, 其实是代码有BUG.
 
 - Spike和OpenOCD镜像中的2021版本和最新的版本都可以, 只是要小改一下参数格式.
 
@@ -259,9 +294,10 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
     kill -9 $(lsof -i:9824 -t)
     kill -9 $(lsof -i:3333 -t)
     
-    # spike -l --log=spike.log obj/riscv-pke obj/app_*
+    # spike -l --log=spike.log obj/riscv-pke obj/app*
     # 效果是spike先后台运行, 但是依然显示spike的输出
-    spike --rbb-port=9824 --halted obj/riscv-pke obj/app_* 2>&1 | tee spike.log &
+    spike --rbb-port=9824 --halted obj/riscv-pke obj/app* 2>&1 | tee spike.log &
+    # spike --rbb-port=9824 --halted -p2 obj/riscv-pke obj/app* 2>&1 | tee spike.log &
     
     sleep 0.1s
     
@@ -280,4 +316,3 @@ gdb调试pke相当于调试一个嵌入式设备, 这方面资料很多, 总体�
     
     echo STARTED
     ```
-    

@@ -1,7 +1,7 @@
 monitor reset halt
 symbol-file obj/riscv-pke
-# b m_start
-# c
+b m_start
+c
 # m_start中会timerinit()
 b s_start
 c
