@@ -48,13 +48,23 @@
       }
     },
     {
+      // CTRL+SHIFT+B执行, 后台运行, 不会获得焦点
       "type": "shell",
       "label": "make",
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "command": "cd ${workspaceFolder} && make -j",
+      "command": "cd ${workspaceFolder} && make -j && make objdump",
+      // "command": "cd ${workspaceFolder} && make clean && make -j && make objdump",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
       "detail": "make"
     }
   ]
